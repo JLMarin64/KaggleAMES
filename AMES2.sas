@@ -5,9 +5,25 @@ PROC IMPORT OUT= WORK.train
      DATAROW=2; 
 RUN;
 
+PROC IMPORT OUT= WORK.test
+            DATAFILE= "/home/marinfamily1010/sasuser.v94/Data/test.csv" 
+            DBMS=CSV REPLACE;
+     GETNAMES=YES;
+     DATAROW=2; 
+RUN;
+
+data work.test;
+set test;
+SalePrice = .;
+;
+
+data work.train2;
+set train test;
+run;
+
 
 data work.train1;
-set work.train;
+set work.train2;
 rename '1stFlrSF'n = FirstFlrSF '2ndFlrSF'n = SecondFlrSF '3SsnPorch'n = ThreesnPorch;
 run;
 
@@ -78,27 +94,62 @@ proc glmselect data=kaggle_clean;
 class &variables;
 model SalePrice = &modelvariables / selection=forward(stop=CV) cvmethod=random(5) select = sl slentry = .1 
 stats=adjrsq;
+output out = results p = Predict;
 run;
+
+data forward_model;
+set results;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 10000;
+keep id SalePrice;
+where id > 1460;
 
 proc glmselect data=kaggle_clean  ;
 class &variables;
 model SalePrice = &modelvariables / selection=backward(stop=CV) cvmethod=random(5) select = sl slstay = .1 stb showpvalues
 stats=adjrsq;
+output out = results1 p = Predict;
 run;
+
+data backward_model;
+set results1;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 10000;
+keep id SalePrice;
+where id > 1460;
+;
+
 
 proc glmselect data=kaggle_clean;
 class &variables;
 model SalePrice = &modelvariables / selection=stepwise(stop=CV) cvmethod=random(5) select = sl slentry = .1 stb showpvalues
 stats=adjrsq;
+output out = results2 p = Predict;
 run;
+
+data stepwise_model;
+set results2;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 10000;
+keep id SalePrice;
+where id > 1460;
+;
 
 
 proc glmselect data=kaggle_clean  ;
 class &variables;
 model SalePrice = BedroomAbvGr BsmtFinSF1 BsmtFinSF2 BsmtFullBath BsmtUnfSF Fireplaces FirstFlrSF FullBath GarageArea GarageCars GrLivArea KitchenAbvGr LotArea LotFrontage_clean LowQualFinSF MSSubClass MasVnrArea MoSold OverallCond OverallQual PoolArea ScreenPorch ThreesnPorch TotRmsAbvGrd WoodDeckSF YearBuilt YearRemodAdd YrSold  / selection=backward(stop=CV) cvmethod=random(5) select = sl slstay = .01 stb showpvalues
 stats=adjrsq;
-output out = slim;
+output out = results3 p = Predict;
 run;
+
+data custom_model;
+set results3;
+if Predict > 0 then SalePrice = Predict;
+if Predict < 0 then SalePrice = 10000;
+keep id SalePrice;
+where id > 1460;
+;
 
 
 
