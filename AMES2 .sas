@@ -89,20 +89,70 @@ proc means data=kaggle_clean  n nmiss mean median std;
 var &numerical;
 run;
 
+
+proc sgscatter data = kaggle_clean;
+plot SalePrice * GrLIvArea;
+run;
+
+proc glm data = kaggle_clean plots=all;
+class &variables;
+model SalePrice = OverallQual GrLivArea Neighborhood BsmtQual / solution clparm;
+output out = cookd cookd = cookd H = Leverage;
+run;
+
+/*Removing influential values*/
+
+/*
+proc sql;
+create table work.train5 as 
+select *
+from COOKD 
+where cookd < .10
+and leverage < .2
+and id <= 1460
+union all
+select *
+from COOKD
+where id > 1460;
+run;
+
+data work.train6(drop = cookd leverage);
+set work.train5;
+run;
+
+proc datasets library=work;
+   delete kaggle_clean;
+run;
+
+proc sql;
+create table work.kaggle_clean as 
+select *
+from work.train6;
+run;
+
+*/
+
+proc glm data = kaggle_clean plots = all;
+class &variables;
+model SalePrice = OverallQual GrLivArea Neighborhood BsmtQual / solution clparm;
+run;
+
+
 /**************The forward, backward, and stepwise selection*******************/;
-proc glmselect data=kaggle_clean;
+proc glmselect data=kaggle_clean plots(stepaxis = number) = (criterionpanel ASEPlot);
 class &variables;
 model SalePrice = &modelvariables / selection=forward(stop=CV) cvmethod=random(5) select = sl slentry = .1 
 stats=adjrsq;
 output out = results p = Predict;
 run;
 
+
 data forward_model;
 set results;
 if Predict > 0 then SalePrice = Predict;
 if Predict < 0 then SalePrice = 10000;
 keep id SalePrice;
-where id > 1460;
+where SalePrice = .;
 
 proc glmselect data=kaggle_clean  ;
 class &variables;
